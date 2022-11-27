@@ -15,6 +15,54 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 console.log(uri)
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+async function run() {
+    try {
+        const ProductCategory = client.db('ResaleBD').collection('ProductCategory');
+        const ProductCollection = client.db('ResaleBD').collection('ProductCollection');
+        const BookedProductCollection = client.db('ResaleBD').collection('BookedProductCollection');
+
+
+        app.get('/category', async (req, res) => {
+            const query = {}
+            const cursor = ProductCategory.find(query);
+            const category = await cursor.toArray();
+            res.send(category);
+        });
+
+        app.get('/category/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { category_id: id }
+            const cursor = ProductCollection.find(query);
+            const products = await cursor.toArray();
+            res.send(products);
+        });
+
+        app.post('/bookings', async (req, res) => {
+            const booking = req.body
+            console.log(booking);
+            const query = {
+                product_id: booking.product_id,
+                email: booking.email,
+            }
+
+            const alreadyBooked = await BookedProductCollection.find(query).toArray();
+
+            if (alreadyBooked.length) {
+                const message = `You already have booked this`
+                return res.send({ acknowledged: false, message })
+            }
+            const result = await BookedProductCollection.insertOne(booking);
+            res.send(result);
+
+        })
+    }
+    finally {
+
+    }
+
+}
+run().catch(err => console.error(err));
+
 
 
 app.get('/', (req, res) => {
