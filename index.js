@@ -20,6 +20,8 @@ async function run() {
         const ProductCategory = client.db('ResaleBD').collection('ProductCategory');
         const ProductCollection = client.db('ResaleBD').collection('ProductCollection');
         const BookedProductCollection = client.db('ResaleBD').collection('BookedProductCollection');
+        const WishlistedProductCollection = client.db('ResaleBD').collection('WishlistedProductCollection');
+
 
 
         app.get('/category', async (req, res) => {
@@ -60,6 +62,25 @@ async function run() {
                 return res.send({ acknowledged: false, message })
             }
             const result = await BookedProductCollection.insertOne(booking);
+            res.send(result);
+
+        })
+
+        app.post('/wishlists', async (req, res) => {
+            const wishlist = req.body
+            console.log(wishlist);
+            const query = {
+                product_id: wishlist.product_id,
+                email: wishlist.email,
+            }
+
+            const alreadyAddedToWishlist = await WishlistedProductCollection.find(query).toArray();
+
+            if (alreadyAddedToWishlist.length) {
+                const message = `Already added to wishlist`
+                return res.send({ acknowledged: false, message })
+            }
+            const result = await WishlistedProductCollection.insertOne(wishlist);
             res.send(result);
 
         })
