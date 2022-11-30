@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
+const { query } = require('express');
 require('dotenv').config();
 
 const app = express();
@@ -42,6 +43,24 @@ async function run() {
         const WishlistedProductCollection = client.db('ResaleBD').collection('WishlistedProductCollection');
         const usersCollection = client.db('ResaleBD').collection('users');
 
+        const verifySeller = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const user = await usersCollection.findOne(query);
+
+            if (user?.user_role !== 'Seller') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
+
+
+        app.get('/categoryOptions', async (req, res) => {
+            const query = {}
+            const result = await ProductCategory.find(query).project({ category_name: 1, category_id: 1 }).toArray();
+            res.send(result);
+        }
+        )
 
         app.get('/category', async (req, res) => {
             const query = {}
@@ -57,6 +76,13 @@ async function run() {
             const products = await cursor.toArray();
             res.send(products);
         });
+
+        app.post('/products', async (req, res) => {
+            const product = req.body;
+            console.log(product)
+            const result = await ProductCollection.insertOne(product);
+            res.send(result);
+        })
 
         app.get('/bookings', verifyJWT, async (req, res) => {
             const email = req.query.email;
@@ -132,6 +158,69 @@ async function run() {
             }
             res.status(403).send({ accessToken: '' })
 
+        });
+
+        app.get('/users/sellers', async (req, res) => {
+            const query = { user_role: 'Seller' };
+            const cursor = usersCollection.find(query);
+            const sellers = await cursor.toArray();
+            res.send(sellers);
+        });
+
+        app.get('/users/buyers', async (req, res) => {
+            const query = { user_role: 'Buyer' };
+            const cursor = usersCollection.find(query);
+            const buyers = await cursor.toArray();
+            res.send(buyers);
+        });
+
+        app.get('/sellers/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) }
+            const user = await usersCollection.findOne(query);
+            res.send(user);
+        })
+
+        app.put('/sellers/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) }
+            const options = { upsert: true };
+            const updatedDoc = {
+                $set: {
+                    seller_status: 'Verified'
+                }
+            }
+            const result = await usersCollection.updateOne(filter, updatedDoc, options);
+            res.send(result);
+        })
+
+        app.get('/users/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const user = await usersCollection.findOne(query);
+            res.send({ isAdmin: user?.user_role === 'Admin' });
+        })
+
+        app.get('/users/sellers/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const user = await usersCollection.findOne(query);
+            res.send({ isSeller: user?.user_role === 'Seller' });
+        })
+
+        app.get('/users/buyers/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const user = await usersCollection.findOne(query);
+            res.send({ isBuyer: user?.user_role === 'Buyer' });
+        })
+
+
+
+        app.get('/users', async (req, res) => {
+            const query = {};
+            const users = await usersCollection.find(query).toArray();
+            res.send(users);
         });
 
         app.post('/users', async (req, res) => {
